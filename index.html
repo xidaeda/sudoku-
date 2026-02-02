@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Sudoku</title>
+    <style>
+        /* ===========================
+           GLOBAL RESET & BASE STYLES
+           =========================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --theme-bg1: #667eea;
+            --theme-bg2: #764ba2;
+            --theme-board-cell-bg: #e6e9f7;
+            --theme-button-bg: #e6e9f7;
+            --theme-button-text: #667eea;
+            --theme-user-text: #4a5dc7;
+            --theme-selected-empty: #c8e6c9;
+            --theme-peer-highlight: #e0e0e0;
+            --theme-selected-number: #fff9c4;
+            --theme-same-number: #e3f2fd;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--theme-bg1) 0%, var(--theme-bg2) 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            color: #333;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* ===========================
+           HEADER SECTION
+           =========================== */
+        .header {
+            width: 100%;
+            max-width: 500px;
+            padding: 1rem;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .difficulty-selector input[type="radio"] {
+            display: none;
+        }
+
+        .difficulty-selector label {
+            padding: 0.6rem 1.2rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: black;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .difficulty-selector input[type="radio"]:checked + label {
+            background: var(--theme-button-bg);
+            color: var(--theme-button-text);
+            border-color: black;
+            transform: scale(1.05);
+        }
+
+        .top-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.7rem 1.2rem;
+            background: var(--theme-button-bg);
+            color: var(--theme-button-text);
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            flex: 1;
+            min-width: 90px;
+            font-family: inherit;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-solve {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-check {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-undo, .btn-redo {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-hint {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            padding: 0.7rem 1.2rem;
+            background: var(--theme-button-bg);
+            color: var(--theme-button-text);
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 100;
+            font-family: inherit;
+        }
+
+        .btn-hint:active {
+            transform: scale(0.98);
+        }
+
+        .btn-hint:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-settings {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            width: 48px;
+            height: 48px;
+            background: var(--theme-button-bg);
+            border: none;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            z-index: 100;
+        }
+
+        .btn-settings:active {
+            transform: scale(0.95);
+        }
+
+        /* ===========================
+           SETTINGS MODAL
+           =========================== */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            padding: 1rem;
+        }
+
+        .settings-modal.show {
+            display: flex;
+        }
+
+        .settings-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .settings-header h2 {
+            margin: 0;
+            color: #667eea;
+            font-size: 1.5rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #666;
+            line-height: 1;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .settings-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-section h3 {
+            color: #333;
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Collapsible Section Styling */
+        .collapsible-header {
+            color: #667eea;
+            font-size: 1rem;
+            margin: 1rem 0 0.5rem 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            user-select: none;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: background 0.2s ease;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .collapsible-arrow {
+            transition: transform 0.2s ease;
+            font-size: 0.8rem;
+        }
+
+        .collapsible-arrow.open {
+            transform: rotate(90deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.open {
+            max-height: 2000px;
+        }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .theme-option {
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .theme-option:hover {
+            border-color: #667eea;
+        }
+
+        .theme-option.active {
+            border-width: 4px;
+        }
+
+        .theme-default.active {
+            color: #ffd700;
+        }
+
+        .theme-ocean.active {
+            color: #ff6b35;
+        }
+
+        .theme-sunset.active {
+            color: #00d4ff;
+        }
+
+        .theme-forest.active {
+            color: #ff9a76;
+        }
+
+        .theme-dark.active {
+            color: #ffd700;
+        }
+
+        .theme-office.active {
+            color: #667eea;
+        }
+
+        .theme-newspaper.active {
+            color: #0066cc;
+        }
+
+        .theme-custom.active {
+            color: #667eea;
+        }
+
+        .theme-default {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .theme-ocean {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            color: white;
+        }
+
+        .theme-sunset {
+            background: linear-gradient(135deg, #ff6a00 0%, #ee0979 100%);
+            color: white;
+        }
+
+        .theme-forest {
+            background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);
+            color: white;
+        }
+
+        .theme-dark {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            color: white;
+        }
+
+        .theme-office {
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+            color: #333;
+            border-color: #ddd;
+        }
+
+        .theme-newspaper {
+            background: linear-gradient(135deg, #f4f1e8 0%, #e8e5d8 100%);
+            color: #2c2c2c;
+            border-color: #ccc;
+            font-family: 'Times New Roman', serif;
+        }
+
+        .theme-custom {
+            border: 2px dashed #667eea;
+            color: #667eea;
+        }
+
+        .custom-color-section {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .custom-color-section.show {
+            display: block;
+        }
+
+        .color-input-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .color-input-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+            color: #666;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .color-input-wrapper {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .color-input-wrapper input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .color-input-wrapper input[type="text"] {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .font-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            background: white;
+        }
+
+        .font-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* ===========================
+           SUDOKU BOARD CONTAINER
+           =========================== */
+        .board-container {
+            width: min(90vw, 50vh);
+            aspect-ratio: 1 / 1;
+            background: var(--theme-board-cell-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            margin: 0.5rem auto;
+        }
+
+        .sudoku-grid {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            gap: 0;
+            background: #1a1a1a;
+        }
+
+        /* ===========================
+           CELL STYLING
+           =========================== */
+        .cell {
+            background: var(--theme-board-cell-bg);
+            border: 0.5px solid #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.5rem, 5vw, 2.2rem);
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .cell:nth-child(9n+3),
+        .cell:nth-child(9n+6) {
+            border-right: 3px solid #000000;
+        }
+
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 3px solid #000000;
+        }
+
+        .cell-given {
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .cell-user {
+            color: var(--theme-user-text);
+            font-weight: 500;
+        }
+
+        .cell-selected-number {
+            background: var(--theme-selected-number) !important;
+        }
+
+        .cell-same-number {
+            background: var(--theme-same-number) !important;
+        }
+
+        .cell-same-number .cell-value {
+            color: #7b1fa2 !important;
+        }
+
+        .cell-selected-empty {
+            background: var(--theme-selected-empty) !important;
+        }
+
+        .cell-peer-highlight {
+            background: var(--theme-peer-highlight) !important;
+        }
+
+        .cell-error .cell-value {
+            color: #d32f2f !important;
+            font-weight: 700;
+        }
+
+        .cell-error {
+            background: #ffebee !important;
+        }
+
+        .pencil-marks {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+            color: #888;
+            pointer-events: none;
+        }
+
+        .pencil-mark {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cell-value {
+            position: relative;
+            z-index: 1;
+        }
+
+        .pencil-toggle-container {
+            width: 100%;
+            max-width: 500px;
+            padding: 0.25rem 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .pencil-toggle {
+            padding: 0.7rem 1.5rem;
+            background: var(--theme-button-bg);
+            color: var(--theme-button-text);
+            border: 2px solid white;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            font-family: inherit;
+        }
+
+        .pencil-toggle:active {
+            transform: scale(0.98);
+        }
+
+        .pencil-toggle.active {
+            background: var(--theme-button-text);
+            color: white;
+        }
+
+        .keypad {
+            width: 100%;
+            max-width: 500px;
+            padding: 0.5rem 1rem;
+            display: flex;
+            gap: 0.4rem;
+            justify-content: space-between;
+        }
+
+        .keypad-key {
+            flex: 1;
+            aspect-ratio: 1 / 1;
+            background: var(--theme-button-bg);
+            border: none;
+            border-radius: 8px;
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            font-weight: 700;
+            color: var(--theme-button-text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+
+        .keypad-key:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .message-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 2rem 3rem;
+            border-radius: 16px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            max-width: 90vw;
+            line-height: 1.5;
+        }
+
+        .message-overlay.show {
+            opacity: 1;
+        }
+
+        .message-overlay.success {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        }
+
+        .message-overlay.error {
+            background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
+        }
+
+        .message-overlay.warning {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+
+        @media (max-width: 375px) {
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .btn {
+                font-size: 0.85rem;
+                padding: 0.6rem 0.8rem;
+            }
+
+            .keypad {
+                gap: 0.3rem;
+                padding: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="btn-hint" id="btn-hint" onclick="giveHint()" disabled>💡 Hint</button>
+    <button class="btn-settings" onclick="openSettings()">⚙️</button>
+
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button class="btn-close" onclick="closeSettings()">&times;</button>
+            </div>
+
+            <div class="settings-section">
+                <h3>Difficulty</h3>
+                <div class="difficulty-selector">
+                    <input type="radio" id="settings-easy" name="settings-difficulty" value="easy">
+                    <label for="settings-easy">Easy</label>
+                    
+                    <input type="radio" id="settings-normal" name="settings-difficulty" value="normal" checked>
+                    <label for="settings-normal">Normal</label>
+                    
+                    <input type="radio" id="settings-hard" name="settings-difficulty" value="hard">
+                    <label for="settings-hard">Hard</label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Theme Presets</h3>
+                <div class="theme-grid">
+                    <div class="theme-option theme-default active" data-theme="default" onclick="selectTheme('default')">Default</div>
+                    <div class="theme-option theme-ocean" data-theme="ocean" onclick="selectTheme('ocean')">Ocean</div>
+                    <div class="theme-option theme-sunset" data-theme="sunset" onclick="selectTheme('sunset')">Sunset</div>
+                    <div class="theme-option theme-forest" data-theme="forest" onclick="selectTheme('forest')">Forest</div>
+                    <div class="theme-option theme-dark" data-theme="dark" onclick="selectTheme('dark')">Dark Mode</div>
+                    <div class="theme-option theme-office" data-theme="office" onclick="selectTheme('office')">Office</div>
+                    <div class="theme-option theme-newspaper" data-theme="newspaper" onclick="selectTheme('newspaper')">Newspaper</div>
+                    <div class="theme-option theme-custom" data-theme="custom" onclick="selectTheme('custom')">Custom</div>
+                </div>
+
+                <div class="custom-color-section" id="custom-colors">
+                    <div class="collapsible-header" onclick="toggleCollapsible('bg-buttons-section')">
+                        <span class="collapsible-arrow">▶</span>
+                        <h4 style="margin: 0; font-size: 1rem;">Background + Buttons</h4>
+                    </div>
+                    <div class="collapsible-content" id="bg-buttons-section">
+                        <div class="color-input-group">
+                            <label>Background Gradient Start</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="bg-color-1" value="#667eea" onchange="updateCustomColor('bg1', this.value)">
+                                <input type="text" id="bg-color-1-text" value="#667eea" onchange="updateCustomColorFromText('bg1', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Background Gradient End</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="bg-color-2" value="#764ba2" onchange="updateCustomColor('bg2', this.value)">
+                                <input type="text" id="bg-color-2-text" value="#764ba2" onchange="updateCustomColorFromText('bg2', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Button Background</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="button-bg-color" value="#e6e9f7" onchange="updateCustomColor('buttonBg', this.value)">
+                                <input type="text" id="button-bg-color-text" value="#e6e9f7" onchange="updateCustomColorFromText('buttonBg', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Button Text Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="button-text-color" value="#667eea" onchange="updateCustomColor('buttonText', this.value)">
+                                <input type="text" id="button-text-color-text" value="#667eea" onchange="updateCustomColorFromText('buttonText', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapsible-header" onclick="toggleCollapsible('sudoku-colors-section')">
+                        <span class="collapsible-arrow">▶</span>
+                        <h4 style="margin: 0; font-size: 1rem;">Sudoku Colors</h4>
+                    </div>
+                    <div class="collapsible-content" id="sudoku-colors-section">
+                        <div class="color-input-group">
+                            <label>Board Background</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="board-cell-bg-color" value="#e6e9f7" onchange="updateCustomColor('boardCellBg', this.value)">
+                                <input type="text" id="board-cell-bg-color-text" value="#e6e9f7" onchange="updateCustomColorFromText('boardCellBg', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Selected Empty Cell Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="selected-empty-color" value="#c8e6c9" onchange="updateCustomColor('selectedEmpty', this.value)">
+                                <input type="text" id="selected-empty-color-text" value="#c8e6c9" onchange="updateCustomColorFromText('selectedEmpty', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Selected Empty Cell's Peers Highlight</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="peer-highlight-color" value="#e0e0e0" onchange="updateCustomColor('peerHighlight', this.value)">
+                                <input type="text" id="peer-highlight-color-text" value="#e0e0e0" onchange="updateCustomColorFromText('peerHighlight', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Selected Number Cell Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="selected-number-color" value="#fff9c4" onchange="updateCustomColor('selectedNumber', this.value)">
+                                <input type="text" id="selected-number-color-text" value="#fff9c4" onchange="updateCustomColorFromText('selectedNumber', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Selected Same Number Highlight</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="same-number-color" value="#e3f2fd" onchange="updateCustomColor('sameNumber', this.value)">
+                                <input type="text" id="same-number-color-text" value="#e3f2fd" onchange="updateCustomColorFromText('sameNumber', this.value)">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Player Entered Number Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="user-text-color" value="#4a5dc7" onchange="updateCustomColor('userText', this.value)">
+                                <input type="text" id="user-text-color-text" value="#4a5dc7" onchange="updateCustomColorFromText('userText', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Font Style</h3>
+                <select class="font-select" id="font-select" onchange="updateFont(this.value)">
+                    <option value="system">System Default</option>
+                    <option value="serif">Serif</option>
+                    <option value="monospace">Monospace</option>
+                    <option value="times">Times New Roman</option>
+                    <option value="cursive">Cursive</option>
+                    <option value="fantasy">Fantasy</option>
+                </select>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="header">
+        <h1>Sudoku</h1>
+        <div class="controls">
+            <div class="top-buttons">
+                <button class="btn btn-new-game" onclick="startNewGame()">New Game</button>
+                <button class="btn btn-undo" id="btn-undo" onclick="undo()" disabled>↶ Undo</button>
+                <button class="btn btn-redo" id="btn-redo" onclick="redo()" disabled>↷ Redo</button>
+                <button class="btn btn-solve" onclick="solvePuzzle()">Solve</button>
+                <button class="btn btn-check" onclick="checkSolution()">Check</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="board-container">
+        <div class="sudoku-grid" id="sudoku-grid"></div>
+    </div>
+
+    <div class="message-overlay" id="message-overlay"></div>
+
+    <div class="pencil-toggle-container">
+        <button class="pencil-toggle" id="pencil-toggle" onclick="togglePencilMode()">📝 Notes Mode: OFF</button>
+    </div>
+
+    <div class="keypad" id="keypad">
+        <button class="keypad-key" onclick="handleKeypadInput(1)">1</button>
+        <button class="keypad-key" onclick="handleKeypadInput(2)">2</button>
+        <button class="keypad-key" onclick="handleKeypadInput(3)">3</button>
+        <button class="keypad-key" onclick="handleKeypadInput(4)">4</button>
+        <button class="keypad-key" onclick="handleKeypadInput(5)">5</button>
+        <button class="keypad-key" onclick="handleKeypadInput(6)">6</button>
+        <button class="keypad-key" onclick="handleKeypadInput(7)">7</button>
+        <button class="keypad-key" onclick="handleKeypadInput(8)">8</button>
+        <button class="keypad-key" onclick="handleKeypadInput(9)">9</button>
+    </div>
+
+    <script>
+        const state = {
+            solution: [],
+            puzzle: [],
+            current: [],
+            pencilMarks: [],
+            selectedCell: null,
+            pencilMode: false,
+            difficulty: 'normal',
+            theme: 'default',
+            font: 'system',
+            customColors: {
+                bg1: '#667eea',
+                bg2: '#764ba2',
+                boardCellBg: '#e6e9f7',
+                buttonBg: '#e6e9f7',
+                buttonText: '#667eea',
+                userText: '#ffd700',
+                selectedEmpty: '#c8e6c9',
+                peerHighlight: '#e0e0e0',
+                selectedNumber: '#fff9c4',
+                sameNumber: '#e3f2fd'
+            },
+            history: [],
+            historyIndex: -1,
+            hintsUsed: 0
+        };
+
+        const themes = {
+            default: { 
+                bg1: '#667eea', 
+                bg2: '#764ba2',
+                boardCellBg: '#e6e9f7',
+                buttonBg: '#e6e9f7',
+                buttonText: '#4a5dc7',
+                userText: '#ffd700'
+            },
+            ocean: { 
+                bg1: '#2193b0', 
+                bg2: '#6dd5ed',
+                boardCellBg: '#d4f1f9',
+                buttonBg: '#d4f1f9',
+                buttonText: '#1a748d',
+                userText: '#ff6b35'
+            },
+            sunset: { 
+                bg1: '#ff6a00', 
+                bg2: '#ee0979',
+                boardCellBg: '#ffe6d4',
+                buttonBg: '#ffe6d4',
+                buttonText: '#cc5500',
+                userText: '#00d4ff'
+            },
+            forest: { 
+                bg1: '#134e5e', 
+                bg2: '#71b280',
+                boardCellBg: '#b8d4c4',
+                buttonBg: '#b8d4c4',
+                buttonText: '#0f3e4b',
+                userText: '#ff9a76'
+            },
+            dark: { 
+                bg1: '#1a1a2e', 
+                bg2: '#0f0f1e',
+                boardCellBg: '#3d3d57',
+                buttonBg: '#3d3d57',
+                buttonText: '#b3b3d4',
+                userText: '#ffd700'
+            },
+            office: { 
+                bg1: '#ffffff', 
+                bg2: '#f5f5f5',
+                boardCellBg: '#cccccc',
+                buttonBg: '#cccccc',
+                buttonText: '#666666',
+                userText: '#667eea'
+            },
+            newspaper: { 
+                bg1: '#f4f1e8', 
+                bg2: '#e8e5d8',
+                boardCellBg: '#c9c5b8',
+                buttonBg: '#c9c5b8',
+                buttonText: '#555544',
+                userText: '#0066cc'
+            }
+        };
+
+        const fonts = {
+            system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            serif: 'Georgia, "Times New Roman", Times, serif',
+            monospace: '"Courier New", Courier, monospace',
+            times: '"Times New Roman", Times, serif',
+            cursive: 'cursive',
+            fantasy: 'Impact, fantasy'
+        };
+
+        function init() {
+            createGrid();
+            loadSettings();
+            startNewGame();
+            setupKeyboardListeners();
+        }
+
+        function createGrid() {
+            const grid = document.getElementById('sudoku-grid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 81; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+                cell.onclick = () => selectCell(i);
+                grid.appendChild(cell);
+            }
+        }
+
+        function solveSudoku(board) {
+            const emptyCell = findEmptyCell(board);
+            if (!emptyCell) return true;
+            
+            const [row, col] = emptyCell;
+            
+            for (let num = 1; num <= 9; num++) {
+                if (isValidPlacement(board, row, col, num)) {
+                    board[row][col] = num;
+                    
+                    if (solveSudoku(board)) {
+                        return true;
+                    }
+                    
+                    board[row][col] = 0;
+                }
+            }
+            
+            return false;
+        }
+
+        function findEmptyCell(board) {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    if (board[row][col] === 0) {
+                        return [row, col];
+                    }
+                }
+            }
+            return null;
+        }
+
+        function isValidPlacement(board, row, col, num) {
+            for (let c = 0; c < 9; c++) {
+                if (c !== col && board[row][c] === num) return false;
+            }
+            
+            for (let r = 0; r < 9; r++) {
+                if (r !== row && board[r][col] === num) return false;
+            }
+            
+            const boxRow = Math.floor(row / 3) * 3;
+            const boxCol = Math.floor(col / 3) * 3;
+            for (let r = boxRow; r < boxRow + 3; r++) {
+                for (let c = boxCol; c < boxCol + 3; c++) {
+                    if ((r !== row || c !== col) && board[r][c] === num) return false;
+                }
+            }
+            
+            return true;
+        }
+
+        function countSolutions(board, maxSolutions = 2) {
+            let count = 0;
+            
+            function backtrack(board) {
+                if (count >= maxSolutions) return;
+                
+                const emptyCell = findEmptyCell(board);
+                if (!emptyCell) {
+                    count++;
+                    return;
+                }
+                
+                const [row, col] = emptyCell;
+                
+                for (let num = 1; num <= 9; num++) {
+                    if (isValidPlacement(board, row, col, num)) {
+                        board[row][col] = num;
+                        backtrack(board);
+                        board[row][col] = 0;
+                        
+                        if (count >= maxSolutions) return;
+                    }
+                }
+            }
+            
+            backtrack(board);
+            return count;
+        }
+
+        function generateSolution() {
+            const board = Array(9).fill(0).map(() => Array(9).fill(0));
+            
+            function fillBoard(board) {
+                const emptyCell = findEmptyCell(board);
+                if (!emptyCell) return true;
+                
+                const [row, col] = emptyCell;
+                const numbers = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                
+                for (let num of numbers) {
+                    if (isValidPlacement(board, row, col, num)) {
+                        board[row][col] = num;
+                        
+                        if (fillBoard(board)) {
+                            return true;
+                        }
+                        
+                        board[row][col] = 0;
+                    }
+                }
+                
+                return false;
+            }
+            
+            fillBoard(board);
+            return board;
+        }
+
+        function generatePuzzle(solution, difficulty) {
+            const puzzle = solution.map(row => [...row]);
+            
+            let cellsToRemove;
+            switch (difficulty) {
+                case 'easy':
+                    cellsToRemove = 35;
+                    break;
+                case 'normal':
+                    cellsToRemove = 45;
+                    break;
+                case 'hard':
+                    cellsToRemove = 52;
+                    break;
+                default:
+                    cellsToRemove = 45;
+            }
+            
+            const positions = [];
+            for (let i = 0; i < 81; i++) {
+                positions.push(i);
+            }
+            shuffle(positions);
+            
+            let removed = 0;
+            
+            for (let pos of positions) {
+                if (removed >= cellsToRemove) break;
+                
+                const row = Math.floor(pos / 9);
+                const col = pos % 9;
+                const backup = puzzle[row][col];
+                
+                puzzle[row][col] = 0;
+                
+                const boardCopy = puzzle.map(r => [...r]);
+                const solutions = countSolutions(boardCopy, 2);
+                
+                if (solutions === 1) {
+                    removed++;
+                } else {
+                    puzzle[row][col] = backup;
+                }
+            }
+            
+            return puzzle;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startNewGame() {
+            const difficultyRadios = document.getElementsByName('settings-difficulty');
+            for (let radio of difficultyRadios) {
+                if (radio.checked) {
+                    state.difficulty = radio.value;
+                    break;
+                }
+            }
+            
+            state.solution = generateSolution();
+            state.puzzle = generatePuzzle(state.solution, state.difficulty);
+            state.current = state.puzzle.map(row => [...row]);
+            
+            state.pencilMarks = Array(9).fill(0).map(() => 
+                Array(9).fill(0).map(() => new Set())
+            );
+            
+            state.selectedCell = null;
+            
+            state.history = [{
+                current: state.current.map(row => [...row]),
+                pencilMarks: state.pencilMarks.map(row => row.map(set => new Set(set)))
+            }];
+            state.historyIndex = 0;
+            state.hintsUsed = 0;
+            
+            renderBoard();
+            updateUndoRedoButtons();
+            updateHintButton();
+        }
+
+        function renderBoard() {
+            const cells = document.querySelectorAll('.cell');
+            
+            cells.forEach((cell, index) => {
+                const row = Math.floor(index / 9);
+                const col = index % 9;
+                const value = state.current[row][col];
+                const isGiven = state.puzzle[row][col] !== 0;
+                
+                cell.className = 'cell';
+                
+                if (value !== 0) {
+                    cell.classList.add(isGiven ? 'cell-given' : 'cell-user');
+                }
+                
+                if (value !== 0) {
+                    cell.innerHTML = `<span class="cell-value">${value}</span>`;
+                } else {
+                    const marks = state.pencilMarks[row][col];
+                    if (marks.size > 0) {
+                        let pencilHTML = '<div class="pencil-marks">';
+                        for (let i = 1; i <= 9; i++) {
+                            pencilHTML += `<div class="pencil-mark">${marks.has(i) ? i : ''}</div>`;
+                        }
+                        pencilHTML += '</div>';
+                        cell.innerHTML = pencilHTML;
+                    } else {
+                        cell.innerHTML = '';
+                    }
+                }
+            });
+            
+            updateHighlighting();
+        }
+
+        function selectCell(index) {
+            state.selectedCell = index;
+            updateHighlighting();
+            updateHintButton();
+        }
+
+        function updateHintButton() {
+            const hintBtn = document.getElementById('btn-hint');
+            
+            if (state.selectedCell !== null) {
+                const row = Math.floor(state.selectedCell / 9);
+                const col = state.selectedCell % 9;
+                const value = state.current[row][col];
+                const isGiven = state.puzzle[row][col] !== 0;
+                
+                hintBtn.disabled = (value !== 0 || isGiven);
+            } else {
+                hintBtn.disabled = true;
+            }
+            
+            if (state.hintsUsed > 0) {
+                hintBtn.textContent = `💡 Hint [${state.hintsUsed}]`;
+            } else {
+                hintBtn.textContent = '💡 Hint';
+            }
+        }
+
+        function giveHint() {
+            if (state.selectedCell === null) {
+                showMessage('Please select an empty cell first', 'warning');
+                return;
+            }
+            
+            const row = Math.floor(state.selectedCell / 9);
+            const col = state.selectedCell % 9;
+            
+            if (state.current[row][col] !== 0) {
+                showMessage('Cell already has a number', 'warning');
+                return;
+            }
+            
+            if (state.puzzle[row][col] !== 0) {
+                showMessage('Cannot modify given clues', 'warning');
+                return;
+            }
+            
+            saveState();
+            
+            const correctValue = state.solution[row][col];
+            state.current[row][col] = correctValue;
+            state.pencilMarks[row][col].clear();
+            state.hintsUsed++;
+            
+            renderBoard();
+            updateUndoRedoButtons();
+            updateHintButton();
+            showMessage('Hint: Filled with correct number', 'success');
+        }
+
+        function updateHighlighting() {
+            const cells = document.querySelectorAll('.cell');
+            
+            cells.forEach(cell => {
+                cell.classList.remove('cell-selected-number', 'cell-selected-empty', 'cell-same-number', 'cell-peer-highlight', 'cell-error');
+            });
+            
+            if (state.selectedCell === null) return;
+            
+            const selectedRow = Math.floor(state.selectedCell / 9);
+            const selectedCol = state.selectedCell % 9;
+            const selectedValue = state.current[selectedRow][selectedCol];
+            
+            checkAndHighlightErrors();
+            
+            if (selectedValue !== 0) {
+                cells[state.selectedCell].classList.add('cell-selected-number');
+                
+                cells.forEach((cell, index) => {
+                    const row = Math.floor(index / 9);
+                    const col = index % 9;
+                    const value = state.current[row][col];
+                    
+                    if (index !== state.selectedCell && value === selectedValue && value !== 0) {
+                        cell.classList.add('cell-same-number');
+                    }
+                });
+            } else {
+                cells[state.selectedCell].classList.add('cell-selected-empty');
+                
+                cells.forEach((cell, index) => {
+                    const row = Math.floor(index / 9);
+                    const col = index % 9;
+                    
+                    if (index !== state.selectedCell) {
+                        const sameRow = row === selectedRow;
+                        const sameCol = col === selectedCol;
+                        const sameBox = Math.floor(row / 3) === Math.floor(selectedRow / 3) && Math.floor(col / 3) === Math.floor(selectedCol / 3);
+                        
+                        if (sameRow || sameCol || sameBox) {
+                            cell.classList.add('cell-peer-highlight');
+                        }
+                    }
+                });
+            }
+        }
+
+        function checkAndHighlightErrors() {
+            const cells = document.querySelectorAll('.cell');
+            
+            cells.forEach((cell, index) => {
+                const row = Math.floor(index / 9);
+                const col = index % 9;
+                const value = state.current[row][col];
+                
+                if (value !== 0 && !isValidPlacement(state.current, row, col, value)) {
+                    cell.classList.add('cell-error');
+                }
+            });
+        }
+
+        function handleKeypadInput(num) {
+            if (state.selectedCell === null) {
+                showMessage('Please select a cell first', 'warning');
+                return;
+            }
+            
+            const row = Math.floor(state.selectedCell / 9);
+            const col = state.selectedCell % 9;
+            
+            if (state.puzzle[row][col] !== 0) {
+                showMessage('Cannot modify given clues', 'warning');
+                return;
+            }
+            
+            saveState();
+            
+            if (state.pencilMode) {
+                const marks = state.pencilMarks[row][col];
+                if (marks.has(num)) {
+                    marks.delete(num);
+                } else {
+                    marks.add(num);
+                }
+            } else {
+                if (state.current[row][col] === num) {
+                    state.current[row][col] = 0;
+                } else {
+                    state.current[row][col] = num;
+                    state.pencilMarks[row][col].clear();
+                }
+            }
+            
+            renderBoard();
+            updateUndoRedoButtons();
+            updateHintButton();
+        }
+
+        function togglePencilMode() {
+            state.pencilMode = !state.pencilMode;
+            const btn = document.getElementById('pencil-toggle');
+            btn.classList.toggle('active');
+            btn.textContent = state.pencilMode ? '✏️ Notes Mode: ON' : '📝 Notes Mode: OFF';
+        }
+
+        function setupKeyboardListeners() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key >= '1' && e.key <= '9') {
+                    handleKeypadInput(parseInt(e.key));
+                } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+                    if (state.selectedCell !== null) {
+                        const row = Math.floor(state.selectedCell / 9);
+                        const col = state.selectedCell % 9;
+                        
+                        if (state.puzzle[row][col] === 0) {
+                            saveState();
+                            state.current[row][col] = 0;
+                            state.pencilMarks[row][col].clear();
+                            renderBoard();
+                            updateUndoRedoButtons();
+                        }
+                    }
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    if (state.selectedCell !== null) {
+                        let row = Math.floor(state.selectedCell / 9);
+                        let col = state.selectedCell % 9;
+                        
+                        if (e.key === 'ArrowUp' && row > 0) row--;
+                        if (e.key === 'ArrowDown' && row < 8) row++;
+                        if (e.key === 'ArrowLeft' && col > 0) col--;
+                        if (e.key === 'ArrowRight' && col < 8) col++;
+                        
+                        selectCell(row * 9 + col);
+                    }
+                }
+            });
+        }
+
+        function solvePuzzle() {
+            const boardCopy = state.current.map(row => [...row]);
+            
+            if (solveSudoku(boardCopy)) {
+                state.current = boardCopy;
+                renderBoard();
+                showMessage('Puzzle solved!', 'success');
+            } else {
+                showMessage('No solution exists', 'error');
+            }
+        }
+
+        function checkSolution() {
+            let hasErrors = false;
+            let hasEmpty = false;
+            
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    const value = state.current[row][col];
+                    
+                    if (value === 0) {
+                        hasEmpty = true;
+                    } else if (!isValidPlacement(state.current, row, col, value)) {
+                        hasErrors = true;
+                    }
+                }
+            }
+            
+            if (hasErrors) {
+                showMessage('There are errors in your solution', 'error');
+            } else if (hasEmpty) {
+                showMessage('Looking good so far!', 'success');
+            } else {
+                let message = '🎉 Congratulations! Puzzle solved correctly!';
+                if (state.hintsUsed > 0) {
+                    message += `<br><span style="color: #ff4444;">[${state.hintsUsed} Hint${state.hintsUsed > 1 ? 's' : ''} used]</span>`;
+                }
+                showMessage(message, 'success');
+            }
+        }
+
+        function showMessage(text, type = 'success') {
+            const overlay = document.getElementById('message-overlay');
+            overlay.innerHTML = text;
+            overlay.className = `message-overlay ${type} show`;
+            
+            setTimeout(() => {
+                overlay.classList.remove('show');
+            }, 2000);
+        }
+
+        function saveState() {
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            
+            state.history.push({
+                current: state.current.map(row => [...row]),
+                pencilMarks: state.pencilMarks.map(row => row.map(set => new Set(set)))
+            });
+            
+            state.historyIndex++;
+            
+            if (state.history.length > 50) {
+                state.history.shift();
+                state.historyIndex--;
+            }
+        }
+
+        function undo() {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                const historyState = state.history[state.historyIndex];
+                state.current = historyState.current.map(row => [...row]);
+                state.pencilMarks = historyState.pencilMarks.map(row => row.map(set => new Set(set)));
+                renderBoard();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function redo() {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                const historyState = state.history[state.historyIndex];
+                state.current = historyState.current.map(row => [...row]);
+                state.pencilMarks = historyState.pencilMarks.map(row => row.map(set => new Set(set)));
+                renderBoard();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('btn-undo').disabled = state.historyIndex <= 0;
+            document.getElementById('btn-redo').disabled = state.historyIndex >= state.history.length - 1;
+        }
+
+        function openSettings() {
+            const diffRadio = document.getElementById('settings-' + state.difficulty);
+            if (diffRadio) diffRadio.checked = true;
+            document.getElementById('settings-modal').classList.add('show');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('show');
+        }
+
+        function toggleCollapsible(sectionId) {
+            const content = document.getElementById(sectionId);
+            const header = content.previousElementSibling;
+            const arrow = header.querySelector('.collapsible-arrow');
+            
+            content.classList.toggle('open');
+            arrow.classList.toggle('open');
+        }
+
+        function selectTheme(themeName) {
+            state.theme = themeName;
+            
+            document.querySelectorAll('.theme-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+            document.querySelector(`[data-theme="${themeName}"]`).classList.add('active');
+            
+            const customSection = document.getElementById('custom-colors');
+            if (themeName === 'custom') {
+                customSection.classList.add('show');
+                applyTheme(
+                    state.customColors.bg1, 
+                    state.customColors.bg2, 
+                    state.customColors.boardCellBg || '#e6e9f7', 
+                    state.customColors.buttonBg || '#e6e9f7', 
+                    state.customColors.buttonText || '#667eea',
+                    state.customColors.userText || '#ffd700',
+                    state.customColors.selectedEmpty || '#c8e6c9',
+                    state.customColors.peerHighlight || '#e0e0e0',
+                    state.customColors.selectedNumber || '#fff9c4',
+                    state.customColors.sameNumber || '#e3f2fd'
+                );
+            } else {
+                customSection.classList.remove('show');
+                const theme = themes[themeName];
+                applyTheme(theme.bg1, theme.bg2, theme.boardCellBg, theme.buttonBg, theme.buttonText, theme.userText);
+            }
+            
+            saveSettings();
+        }
+
+        function applyTheme(bg1, bg2, boardCellBg, buttonBg, buttonText, userText, selectedEmpty, peerHighlight, selectedNumber, sameNumber) {
+            document.documentElement.style.setProperty('--theme-bg1', bg1);
+            document.documentElement.style.setProperty('--theme-bg2', bg2);
+            document.documentElement.style.setProperty('--theme-board-cell-bg', boardCellBg);
+            document.documentElement.style.setProperty('--theme-button-bg', buttonBg);
+            document.documentElement.style.setProperty('--theme-button-text', buttonText);
+            document.documentElement.style.setProperty('--theme-user-text', userText);
+            if (selectedEmpty) document.documentElement.style.setProperty('--theme-selected-empty', selectedEmpty);
+            if (peerHighlight) document.documentElement.style.setProperty('--theme-peer-highlight', peerHighlight);
+            if (selectedNumber) document.documentElement.style.setProperty('--theme-selected-number', selectedNumber);
+            if (sameNumber) document.documentElement.style.setProperty('--theme-same-number', sameNumber);
+        }
+
+        function updateCustomColor(type, value) {
+            state.customColors[type] = value;
+            
+            const textInputMap = {
+                'bg1': 'bg-color-1-text',
+                'bg2': 'bg-color-2-text',
+                'selectedEmpty': 'selected-empty-color-text',
+                'peerHighlight': 'peer-highlight-color-text',
+                'selectedNumber': 'selected-number-color-text',
+                'sameNumber': 'same-number-color-text',
+                'boardCellBg': 'board-cell-bg-color-text',
+                'buttonBg': 'button-bg-color-text',
+                'buttonText': 'button-text-color-text',
+                'userText': 'user-text-color-text'
+            };
+            
+            if (textInputMap[type]) {
+                document.getElementById(textInputMap[type]).value = value;
+            }
+            
+            if (state.theme === 'custom') {
+                applyTheme(
+                    state.customColors.bg1, 
+                    state.customColors.bg2, 
+                    state.customColors.boardCellBg, 
+                    state.customColors.buttonBg, 
+                    state.customColors.buttonText,
+                    state.customColors.userText,
+                    state.customColors.selectedEmpty,
+                    state.customColors.peerHighlight,
+                    state.customColors.selectedNumber,
+                    state.customColors.sameNumber
+                );
+            }
+            
+            saveSettings();
+        }
+
+        function updateCustomColorFromText(type, value) {
+            if (/^#[0-9A-F]{6}$/i.test(value)) {
+                state.customColors[type] = value;
+                
+                const colorInputMap = {
+                    'bg1': 'bg-color-1',
+                    'bg2': 'bg-color-2',
+                    'selectedEmpty': 'selected-empty-color',
+                    'peerHighlight': 'peer-highlight-color',
+                    'selectedNumber': 'selected-number-color',
+                    'sameNumber': 'same-number-color',
+                    'boardCellBg': 'board-cell-bg-color',
+                    'buttonBg': 'button-bg-color',
+                    'buttonText': 'button-text-color',
+                    'userText': 'user-text-color'
+                };
+                
+                if (colorInputMap[type]) {
+                    document.getElementById(colorInputMap[type]).value = value;
+                }
+                
+                if (state.theme === 'custom') {
+                    applyTheme(
+                        state.customColors.bg1, 
+                        state.customColors.bg2, 
+                        state.customColors.boardCellBg, 
+                        state.customColors.buttonBg, 
+                        state.customColors.buttonText,
+                        state.customColors.userText,
+                        state.customColors.selectedEmpty,
+                        state.customColors.peerHighlight,
+                        state.customColors.selectedNumber,
+                        state.customColors.sameNumber
+                    );
+                }
+                
+                saveSettings();
+            }
+        }
+
+        function updateFont(fontName) {
+            state.font = fontName;
+            document.body.style.fontFamily = fonts[fontName];
+            saveSettings();
+        }
+
+        function saveSettings() {
+            const settings = {
+                theme: state.theme,
+                font: state.font,
+                customColors: state.customColors,
+                difficulty: state.difficulty
+            };
+            try {
+                localStorage.setItem('sudokuSettings', JSON.stringify(settings));
+            } catch (e) {
+                console.log('localStorage not available');
+            }
+        }
+
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('sudokuSettings');
+                const settings = saved ? JSON.parse(saved) : {
+                    theme: 'default',
+                    font: 'system',
+                    customColors: state.customColors,
+                    difficulty: 'normal'
+                };
+                
+                if (settings.difficulty) {
+                    state.difficulty = settings.difficulty;
+                    const diffRadio = document.getElementById('settings-' + settings.difficulty);
+                    if (diffRadio) diffRadio.checked = true;
+                }
+                
+                if (settings.theme) {
+                    state.theme = settings.theme;
+                }
+                
+                if (settings.font) {
+                    state.font = settings.font;
+                    document.getElementById('font-select').value = settings.font;
+                    document.body.style.fontFamily = fonts[settings.font];
+                }
+                
+                if (settings.customColors) {
+                    state.customColors = { ...state.customColors, ...settings.customColors };
+                    
+                    document.getElementById('bg-color-1').value = state.customColors.bg1;
+                    document.getElementById('bg-color-1-text').value = state.customColors.bg1;
+                    document.getElementById('bg-color-2').value = state.customColors.bg2;
+                    document.getElementById('bg-color-2-text').value = state.customColors.bg2;
+                    document.getElementById('board-cell-bg-color').value = state.customColors.boardCellBg;
+                    document.getElementById('board-cell-bg-color-text').value = state.customColors.boardCellBg;
+                    document.getElementById('button-bg-color').value = state.customColors.buttonBg;
+                    document.getElementById('button-bg-color-text').value = state.customColors.buttonBg;
+                    document.getElementById('button-text-color').value = state.customColors.buttonText;
+                    document.getElementById('button-text-color-text').value = state.customColors.buttonText;
+                    document.getElementById('user-text-color').value = state.customColors.userText;
+                    document.getElementById('user-text-color-text').value = state.customColors.userText;
+                    document.getElementById('selected-empty-color').value = state.customColors.selectedEmpty;
+                    document.getElementById('selected-empty-color-text').value = state.customColors.selectedEmpty;
+                    document.getElementById('peer-highlight-color').value = state.customColors.peerHighlight;
+                    document.getElementById('peer-highlight-color-text').value = state.customColors.peerHighlight;
+                    document.getElementById('selected-number-color').value = state.customColors.selectedNumber;
+                    document.getElementById('selected-number-color-text').value = state.customColors.selectedNumber;
+                    document.getElementById('same-number-color').value = state.customColors.sameNumber;
+                    document.getElementById('same-number-color-text').value = state.customColors.sameNumber;
+                }
+                
+                selectTheme(state.theme);
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
